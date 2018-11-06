@@ -2,14 +2,11 @@ var jsonStream = require('duplex-json-stream')
 var net = require('net')
 var fs = require('fs')
 
-
 var balance = 0;
 var log = [];
 const logFile = 'transactionlog.txt';
-var isLogLoaded = false;
 
-function add(total, amount) { return total+= amount; }
-function subtract(total, amount) { return total-= amount; }
+updateLogFromFile();
 
 function getBalance() {
     return balance;
@@ -38,7 +35,6 @@ function updateLogFromFile() {
         }
     });
 
-    isLogLoaded = true;
     return true;
 }
 
@@ -47,20 +43,32 @@ function addLogEntry (command, amount) {
     updateLogToFile();
 }
 
-function setDeposit(amount) {
+function addBalance(amount) {
     if(amount > 0)
     {
         balance += amount;
-        addLogEntry('deposit', amount);
+        return true;
     }
+    return false;
 }
 
-function setWithdraw(amount) {
+function setDeposit(amount) {
+    if(addBalance(amount))
+        addLogEntry('deposit', amount);
+}
+
+function removeBalance(amount) {
     if(amount > 0 && (balance-amount) >= 0)
     {
         balance -= amount;
-        addLogEntry('withdraw', amount);
+        return true;
     }
+    return false;
+}
+
+function setWithdraw(amount) {
+    if(removeBalance(amount))
+        addLogEntry('withdraw', amount);
 }
 
 function getBalanceWithCommand() {
@@ -98,10 +106,6 @@ function doCommand(obj) {
 
 var server = net.createServer(function (socket) {
     socket = jsonStream(socket)
-
-    if(!isLogLoaded)
-        updateLogFromFile();
-
     socket.on('data', function(data) {
 
         console.log("Bank received: ", data)
