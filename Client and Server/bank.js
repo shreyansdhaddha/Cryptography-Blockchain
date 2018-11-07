@@ -1,12 +1,20 @@
 var jsonStream = require('duplex-json-stream')
 var net = require('net')
 var fs = require('fs')
+var sodium = require('sodium-native')
 
 var balance = 0;
 var log = [];
-const logFile = 'transactionlog.txt';
+const logFile = 'log.json';
 
 updateLogFromFile();
+
+function generateHash(data) {
+    var output = Buffer.alloc(sodium.crypto_generichash_BYTES)
+    var input = Buffer.from(data)
+    sodium.crypto_generichash(output, input)
+    return output.toString('hex');
+}
 
 function getBalance() {
     return balance;
@@ -38,9 +46,21 @@ function updateLogFromFile() {
     return true;
 }
 
+function addHashLogEntry(entry) {
+    var genesisHash = Buffer.alloc(32).toString('hex')
+    var prevHash = log.length ? log[log.length-1].hash : genesisHash
+    
+    log.push({
+        value: entry,
+        hash: hashToHex(prevHash + JSON.stringify(entry))
+    })
+}
+
 function addLogEntry (command, amount) {
-    log.push({cmd: command, amount: amount});
+    var value = {cmd: command, amount: amount};
+    log.push(value);
     updateLogToFile();
+    //addHashLogEntry(value);
 }
 
 function addBalance(amount) {
